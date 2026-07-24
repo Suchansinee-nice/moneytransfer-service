@@ -1,0 +1,17 @@
+databaseChangeLog: []
+# เพิ่ม changeSet ใหม่ทีหลังตรงนี้ เช่น สร้างตาราง, แก้ schema
+# ตัวอย่าง:
+# databaseChangeLog:
+#   - changeSet:
+#       id: 1
+#       author: your-name
+#       changes:
+#         - createTable:
+#             tableName: sample
+#             columns:
+#               - column:
+#                   name: id
+#                   type: bigint
+#                   autoIncrement: true
+#                   constraints:
+#                     primaryKey: true

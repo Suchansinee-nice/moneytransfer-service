@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  moneytransfer-service:
+    build: ./
+    image: moneytransfer-service:latest
+    container_name: moneytransfer-service
+    ports:
+      - "8080:8080"
+    environment:
+      DB_SA_PASSWORD: ${DB_SA_PASSWORD}
+      MQ_QMGR_NAME: ${MQ_QMGR_NAME}
+      MQ_APP_USER: ${MQ_APP_USER}
+      MQ_APP_PASSWORD: ${MQ_APP_PASSWORD}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mq:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/moneytransfer-service/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q ''SELECT 1'' || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  mq:
+    image: ibmcom/mq:latest
+    container_name: ibmmq
+    restart: unless-stopped
+    environment:
+      LICENSE: "accept"
+      MQ_QMGR_NAME: ${MQ_QMGR_NAME}
+      MQ_APP_USER: ${MQ_APP_USER}
+      MQ_APP_PASSWORD: ${MQ_APP_PASSWORD}
+    ports:
+      - "1414:1414" # MQ listener
+      - "9443:9443" # MQ web console (https://localhost:9443)
+    volumes:
+      - mq_data:/mnt/mqm
+    healthcheck:
+      test: ["CMD", "chkmqhealthy"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - backend
+
+volumes:
+  mssql_data:
+  mq_data:
+
+networks:
+  backend:
