@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   moneytransfer-service:
     build: ./
@@ -19,6 +17,8 @@ services:
         condition: service_healthy
       mq:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     networks:
       - backend
     healthcheck:
@@ -28,8 +28,25 @@ services:
       retries: 3
       start_period: 60s
 
+  db-init:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      DB_SA_PASSWORD: ${DB_SA_PASSWORD}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$$DB_SA_PASSWORD"
+        -Q "IF DB_ID('demodb') IS NULL CREATE DATABASE demodb;"
+    networks:
+      - backend
+
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2019-latest
+    image: mcr.microsoft.com/azure-sql-edge:latest
     container_name: sqlserver
     restart: unless-stopped
     environment:
@@ -40,11 +57,7 @@ services:
     volumes:
       - mssql_data:/var/opt/mssql
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q ''SELECT 1'' || exit 1',
-        ]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/1433' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -67,7 +80,7 @@ services:
       - backend
 
   mq:
-    image: ibmcom/mq:latest
+    image: ibm-mqadvanced-server-dev:10.0.0.0-arm64
     container_name: ibmmq
     restart: unless-stopped
     environment:
@@ -85,7 +98,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 60s
     networks:
       - backend
 
