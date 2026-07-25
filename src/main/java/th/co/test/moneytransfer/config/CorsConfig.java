@@ -1,4 +1,4 @@
-package th.co.muangthai.moneytransfer.config;
+package th.co.test.moneytransfer.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

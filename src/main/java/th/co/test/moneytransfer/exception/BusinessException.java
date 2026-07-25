@@ -1,4 +1,4 @@
-package th.co.muangthai.moneytransfer.exception;
+package th.co.test.moneytransfer.exception;
 
 import lombok.Getter;
 
