@@ -1,5 +1,31 @@
 package th.co.test.moneytransfer.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import th.co.test.moneytransfer.request.AccountRequest;
+import th.co.test.moneytransfer.response.AccountResponse;
+import th.co.test.moneytransfer.service.MoneyTransferService;
+
+@Log4j2
+@RestController
+@RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class MoneyTransferController {
 
+    private final MoneyTransferService moneyTransferService;
+
+    @PostMapping(value = "/accounts")
+    public ResponseEntity<AccountResponse> createAccount(@Valid @RequestBody AccountRequest request) {
+        AccountResponse response = moneyTransferService.createAccount(request);
+        log.info("create account: {}", response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 }

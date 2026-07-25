@@ -377,4 +377,16 @@ databaseChangeLog:
             sql: >
               ALTER TABLE outbox_event ADD CONSTRAINT CK_outbox_st CHECK (status IN ('PENDING','PUBLISHED','FAILED'));
 
+  # changeSet 13: สร้าง sequence แยกต่างหากไว้ generate accountNumber โดยเฉพาะ
+  # (แยกจาก IDENTITY ของคอลัมน์ id เพราะ id รู้ค่าได้หลัง insert เท่านั้น แต่ accountNumber ต้องมีค่าตั้งแต่ก่อน insert)
+  - changeSet:
+      id: 013-create-account-number-sequence
+      author: nice
+      changes:
+        - createSequence:
+            sequenceName: account_number_seq
+            dataType: bigint
+            startValue: 1001
+            incrementBy: 1
+
 # เพิ่ม changeSet ใหม่ทีหลังต่อท้ายรายการนี้เสมอ (ห้ามแก้ของเก่าที่เคยรันไปแล้ว)
