@@ -1,17 +1,380 @@
-databaseChangeLog: []
-# เพิ่ม changeSet ใหม่ทีหลังตรงนี้ เช่น สร้างตาราง, แก้ schema
-# ตัวอย่าง:
-# databaseChangeLog:
-#   - changeSet:
-#       id: 1
-#       author: your-name
-#       changes:
-#         - createTable:
-#             tableName: sample
-#             columns:
-#               - column:
-#                   name: id
-#                   type: bigint
-#                   autoIncrement: true
-#                   constraints:
-#                     primaryKey: true
+databaseChangeLog:
+  # changeSet 1: สร้างตาราง account
+  - changeSet:
+      id: 001-create-account-table
+      author: nice
+      changes:
+        - createTable:
+            tableName: account
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: PK_account
+              - column:
+                  name: account_number
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: UQ_account_number
+              - column:
+                  name: owner_name
+                  type: nvarchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: char(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: balance
+                  type: decimal(19,4)
+                  defaultValueNumeric: 0
+                  defaultValueConstraintName: DF_account_balance
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(10)
+                  defaultValue: ACTIVE
+                  defaultValueConstraintName: DF_account_status
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: datetime2(3)
+                  defaultValueComputed: SYSUTCDATETIME()
+                  defaultValueConstraintName: DF_account_created
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: datetime2(3)
+                  defaultValueComputed: SYSUTCDATETIME()
+                  defaultValueConstraintName: DF_account_updated
+                  constraints:
+                    nullable: false
+
+  # changeSet 2: เพิ่ม CHECK constraint
+  - changeSet:
+      id: 002-add-account-check-constraints
+      author: nice
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE account ADD CONSTRAINT CK_account_balance CHECK (balance >= 0);
+        - sql:
+            sql: >
+              ALTER TABLE account ADD CONSTRAINT CK_account_status CHECK (status IN ('ACTIVE','FROZEN','CLOSED'));
+
+  # changeSet 3: seed ข้อมูลบัญชีตัวอย่างไว้ทดสอบการโอน
+  - changeSet:
+      id: 003-seed-accounts
+      author: nice
+      changes:
+        - insert:
+            tableName: account
+            columns:
+              - column:
+                  name: account_number
+                  value: "1000000001"
+              - column:
+                  name: owner_name
+                  value: "Somchai Jaidee"
+              - column:
+                  name: currency
+                  value: THB
+              - column:
+                  name: balance
+                  valueNumeric: 50000.00
+        - insert:
+            tableName: account
+            columns:
+              - column:
+                  name: account_number
+                  value: "1000000002"
+              - column:
+                  name: owner_name
+                  value: "Suda Meesuk"
+              - column:
+                  name: currency
+                  value: THB
+              - column:
+                  name: balance
+                  valueNumeric: 30000.00
+        - insert:
+            tableName: account
+            columns:
+              - column:
+                  name: account_number
+                  value: "1000000003"
+              - column:
+                  name: owner_name
+                  value: "Anan Rakthai"
+              - column:
+                  name: currency
+                  value: THB
+              - column:
+                  name: balance
+                  valueNumeric: 15000.50
+
+  # changeSet 4: สร้างตาราง transfer
+  - changeSet:
+      id: 004-create-transfer-table
+      author: nice
+      changes:
+        - createTable:
+            tableName: transfer
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: PK_transfer
+              - column:
+                  name: idempotency_key
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: UQ_transfer_idem
+              - column:
+                  name: from_account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: char(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  # PENDING / COMPLETED / FAILED
+                  name: status
+                  type: varchar(12)
+                  constraints:
+                    nullable: false
+              - column:
+                  # hash ของ payload ใช้เทียบ idempotency
+                  name: request_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: failure_reason
+                  type: nvarchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: datetime2(3)
+                  defaultValueComputed: SYSUTCDATETIME()
+                  defaultValueConstraintName: DF_transfer_created
+                  constraints:
+                    nullable: false
+
+  # changeSet 5: เพิ่ม FOREIGN KEY ให้ transfer อ้างอิงไปที่ account
+  - changeSet:
+      id: 005-add-transfer-foreign-keys
+      author: nice
+      changes:
+        - addForeignKeyConstraint:
+            constraintName: FK_transfer_from
+            baseTableName: transfer
+            baseColumnNames: from_account_id
+            referencedTableName: account
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: FK_transfer_to
+            baseTableName: transfer
+            baseColumnNames: to_account_id
+            referencedTableName: account
+            referencedColumnNames: id
+
+  # changeSet 6: เพิ่ม CHECK constraint ให้ transfer
+  - changeSet:
+      id: 006-add-transfer-check-constraints
+      author: nice
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE transfer ADD CONSTRAINT CK_transfer_amount CHECK (amount > 0);
+        - sql:
+            sql: >
+              ALTER TABLE transfer ADD CONSTRAINT CK_transfer_status CHECK (status IN ('PENDING','COMPLETED','FAILED'));
+
+  # changeSet 7: สร้างตาราง ledger_entry (รายการเดินบัญชี insert-only ห้าม update/delete)
+  - changeSet:
+      id: 007-create-ledger-entry-table
+      author: nice
+      changes:
+        - createTable:
+            tableName: ledger_entry
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: PK_ledger
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: transfer_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+              - column:
+                  name: entry_type
+                  type: varchar(6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: balance_after
+                  type: decimal(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: datetime2(3)
+                  defaultValueComputed: SYSUTCDATETIME()
+                  defaultValueConstraintName: DF_ledger_created
+                  constraints:
+                    nullable: false
+
+  # changeSet 8: เพิ่ม FOREIGN KEY ให้ ledger_entry อ้างอิงไปที่ account และ transfer
+  - changeSet:
+      id: 008-add-ledger-entry-foreign-keys
+      author: nice
+      changes:
+        - addForeignKeyConstraint:
+            constraintName: FK_ledger_account
+            baseTableName: ledger_entry
+            baseColumnNames: account_id
+            referencedTableName: account
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: FK_ledger_transfer
+            baseTableName: ledger_entry
+            baseColumnNames: transfer_id
+            referencedTableName: transfer
+            referencedColumnNames: id
+
+  # changeSet 9: เพิ่ม CHECK constraint ให้ ledger_entry
+  - changeSet:
+      id: 009-add-ledger-entry-check-constraints
+      author: nice
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE ledger_entry ADD CONSTRAINT CK_ledger_type CHECK (entry_type IN ('DEBIT','CREDIT'));
+        - sql:
+            sql: >
+              ALTER TABLE ledger_entry ADD CONSTRAINT CK_ledger_amount CHECK (amount > 0);
+
+  # changeSet 10: เพิ่ม index ช่วยให้ query ประวัติเดินบัญชีของแต่ละบัญชีเรียงตามเวลาล่าสุดได้เร็วขึ้น
+  - changeSet:
+      id: 010-add-ledger-entry-index
+      author: nice
+      changes:
+        - createIndex:
+            indexName: IX_ledger_account
+            tableName: ledger_entry
+            columns:
+              - column:
+                  name: account_id
+              - column:
+                  name: created_at
+                  descending: true
+
+  # changeSet 11: สร้างตาราง outbox_event (transactional outbox pattern สำหรับส่ง event)
+  - changeSet:
+      id: 011-create-outbox-event-table
+      author: nice
+      changes:
+        - createTable:
+            tableName: outbox_event
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: PK_outbox
+              - column:
+                  name: aggregate_type
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aggregate_id
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: nvarchar(MAX)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(10)
+                  defaultValue: PENDING
+                  defaultValueConstraintName: DF_outbox_status
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: datetime2(3)
+                  defaultValueComputed: SYSUTCDATETIME()
+                  defaultValueConstraintName: DF_outbox_created
+                  constraints:
+                    nullable: false
+              - column:
+                  name: published_at
+                  type: datetime2(3)
+                  constraints:
+                    nullable: true
+
+  # changeSet 12: เพิ่ม CHECK constraint ให้ outbox_event
+  - changeSet:
+      id: 012-add-outbox-event-check-constraints
+      author: nice
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE outbox_event ADD CONSTRAINT CK_outbox_st CHECK (status IN ('PENDING','PUBLISHED','FAILED'));
+
+# เพิ่ม changeSet ใหม่ทีหลังต่อท้ายรายการนี้เสมอ (ห้ามแก้ของเก่าที่เคยรันไปแล้ว)
