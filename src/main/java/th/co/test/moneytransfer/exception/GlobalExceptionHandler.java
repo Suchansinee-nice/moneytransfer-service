@@ -33,6 +33,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleAccountNotFound(AccountNotFoundException ex,
+                                                                  HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.NOT_FOUND,
+                ERROR_BASE_URI + "account-not-found",
+                "Account not found",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {

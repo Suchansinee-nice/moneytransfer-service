@@ -2,6 +2,8 @@ package th.co.test.moneytransfer.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,5 +29,12 @@ public class MoneyTransferController {
         AccountResponse response = moneyTransferService.createAccount(request);
         log.info("create account: {}", response);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping(value = "/accounts/{id}")
+    public ResponseEntity<AccountResponse> getAccount(@PathVariable Long id) {
+        AccountResponse response = moneyTransferService.getAccountById(id);
+        log.info("get account: {}", response);
+        return ResponseEntity.ok(response);
     }
 }
