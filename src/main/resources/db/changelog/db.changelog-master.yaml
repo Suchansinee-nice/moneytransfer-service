@@ -81,8 +81,11 @@ databaseChangeLog:
             tableName: account
             columns:
               - column:
+                  name: id
+                  valueNumeric: 1001
+              - column:
                   name: account_number
-                  value: "1000000001"
+                  value: "0000001001"
               - column:
                   name: owner_name
                   value: "Somchai Jaidee"
@@ -96,8 +99,11 @@ databaseChangeLog:
             tableName: account
             columns:
               - column:
+                  name: id
+                  valueNumeric: 1002
+              - column:
                   name: account_number
-                  value: "1000000002"
+                  value: "0000001002"
               - column:
                   name: owner_name
                   value: "Suda Meesuk"
@@ -111,8 +117,11 @@ databaseChangeLog:
             tableName: account
             columns:
               - column:
+                  name: id
+                  valueNumeric: 1003
+              - column:
                   name: account_number
-                  value: "1000000003"
+                  value: "0000001003"
               - column:
                   name: owner_name
                   value: "Anan Rakthai"
