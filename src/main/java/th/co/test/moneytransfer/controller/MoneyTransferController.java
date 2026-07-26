@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
+import th.co.test.moneytransfer.response.TransactionResponse;
 import th.co.test.moneytransfer.response.WithdrawResponse;
 import th.co.test.moneytransfer.service.MoneyTransferService;
 
@@ -73,6 +75,17 @@ public class MoneyTransferController {
                                                        @Valid @RequestBody WithDrawRequest request) {
         WithdrawResponse response = moneyTransferService.withdraw(id, request);
         log.info("withdraw: {}", response);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/accounts/{id}/transactions")
+    public ResponseEntity<TransactionResponse> getTransactions(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+    	TransactionResponse response = moneyTransferService.getTransactions(id, page, size);
+    	log.info("transaction : {}", response);
         return ResponseEntity.ok(response);
     }
 }

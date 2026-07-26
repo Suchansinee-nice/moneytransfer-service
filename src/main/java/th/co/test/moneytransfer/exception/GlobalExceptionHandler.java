@@ -33,6 +33,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(InvalidPageRequestException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidPageRequest(InvalidPageRequestException ex,
+                                                                     HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.BAD_REQUEST,
+                ERROR_BASE_URI + "invalid-page-request",
+                "Invalid page request",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleAccountNotFound(AccountNotFoundException ex,
                                                                   HttpServletRequest request) {

@@ -2,9 +2,15 @@ package th.co.test.moneytransfer.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +21,8 @@ import th.co.test.moneytransfer.exception.AccountCloseNotAllowedException;
 import th.co.test.moneytransfer.exception.AccountNotActiveException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
 import th.co.test.moneytransfer.exception.InsufficientBalanceException;
+import th.co.test.moneytransfer.exception.InvalidPageRequestException;
+import th.co.test.moneytransfer.model.LedgerEntryModel;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
 import th.co.test.moneytransfer.request.AccountRequest;
@@ -24,6 +32,7 @@ import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
+import th.co.test.moneytransfer.response.TransactionResponse;
 import th.co.test.moneytransfer.response.WithdrawResponse;
 
 @Service
@@ -219,6 +228,48 @@ public class MoneyTransferService {
         response.setAccountId(savedAccount.getId());
         response.setBalance(savedAccount.getBalance());
         response.setLedgerEntryId(savedLedger.getId());
+
+        return response;
+    }
+    
+    
+    public TransactionResponse getTransactions(Long id, int page, int size) {
+        Optional<Account> result = accountRepository.findById(id);
+
+        if (result.isEmpty()) {
+            throw new AccountNotFoundException(id);
+        }
+
+        // check page and size
+        if (page < 0) {
+            throw new InvalidPageRequestException("page ต้องเริ่มต้นที่ 0 ขึ้นไป");
+        }
+        if (size < 1 || size > 100) {
+            throw new InvalidPageRequestException("size ต้องมีค่าอยู่ระหว่าง 1 ถึง 100");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LedgerEntry> ledgerPage = ledgerEntryRepository.findByAccountId(id, pageable);
+
+        List<LedgerEntryModel> items = new ArrayList<LedgerEntryModel>();
+        for (LedgerEntry entry : ledgerPage.getContent()) {
+            LedgerEntryModel item = new LedgerEntryModel();
+            item.setId(entry.getId());
+            item.setEntryType(entry.getEntryType());
+            item.setAmount(entry.getAmount());
+            item.setBalanceAfter(entry.getBalanceAfter());
+            item.setTransferId(entry.getTransferId());
+            item.setCreatedAt(entry.getCreatedAt());
+            items.add(item);
+        }
+
+        TransactionResponse response = new TransactionResponse();
+        response.setAccountId(id);
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalElements(ledgerPage.getTotalElements());
+        response.setTotalPages(ledgerPage.getTotalPages());
+        response.setItems(items);
 
         return response;
     }
