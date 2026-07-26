@@ -45,6 +45,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(AccountCloseNotAllowedException.class)
+    public ResponseEntity<ProblemDetail> handleAccountCloseNotAllowed(AccountCloseNotAllowedException ex,
+                                                                        HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.CONFLICT,
+                ERROR_BASE_URI + "account-close-not-allowed",
+                "Account close not allowed",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {

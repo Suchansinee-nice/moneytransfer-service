@@ -11,10 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import th.co.test.moneytransfer.entity.Account;
 import th.co.test.moneytransfer.entity.LedgerEntry;
+import th.co.test.moneytransfer.exception.AccountCloseNotAllowedException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
 import th.co.test.moneytransfer.request.AccountRequest;
+import th.co.test.moneytransfer.request.AccountStatusRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 
@@ -85,6 +87,36 @@ public class MoneyTransferService {
         response.setBalance(account.getBalance());
         response.setStatus(account.getStatus());
         response.setCreatedAt(account.getCreatedAt());
+
+        return response;
+    }
+
+    @Transactional
+    public AccountResponse updateAccountStatus(Long id, AccountStatusRequest request) {
+        Optional<Account> result = accountRepository.findById(id);
+
+        if (result.isEmpty()) {
+            throw new AccountNotFoundException(id);
+        }
+
+        Account account = result.get();
+
+        // Cannot close account if balance != 0
+        if ("CLOSED".equals(request.getStatus()) && account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
+            throw new AccountCloseNotAllowedException(id);
+        }
+
+        account.setStatus(request.getStatus());
+        Account saved = accountRepository.save(account);
+
+        AccountResponse response = new AccountResponse();
+        response.setId(saved.getId());
+        response.setAccountNumber(saved.getAccountNumber());
+        response.setOwnerName(saved.getOwnerName());
+        response.setCurrency(saved.getCurrency());
+        response.setBalance(saved.getBalance());
+        response.setStatus(saved.getStatus());
+        response.setCreatedAt(saved.getCreatedAt());
 
         return response;
     }
