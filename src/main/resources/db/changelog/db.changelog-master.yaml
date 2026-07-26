@@ -77,60 +77,20 @@ databaseChangeLog:
       id: 003-seed-accounts
       author: nice
       changes:
-        - insert:
-            tableName: account
-            columns:
-              - column:
-                  name: id
-                  valueNumeric: 1001
-              - column:
-                  name: account_number
-                  value: "0000001001"
-              - column:
-                  name: owner_name
-                  value: "Somchai Jaidee"
-              - column:
-                  name: currency
-                  value: THB
-              - column:
-                  name: balance
-                  valueNumeric: 50000.00
-        - insert:
-            tableName: account
-            columns:
-              - column:
-                  name: id
-                  valueNumeric: 1002
-              - column:
-                  name: account_number
-                  value: "0000001002"
-              - column:
-                  name: owner_name
-                  value: "Suda Meesuk"
-              - column:
-                  name: currency
-                  value: THB
-              - column:
-                  name: balance
-                  valueNumeric: 30000.00
-        - insert:
-            tableName: account
-            columns:
-              - column:
-                  name: id
-                  valueNumeric: 1003
-              - column:
-                  name: account_number
-                  value: "0000001003"
-              - column:
-                  name: owner_name
-                  value: "Anan Rakthai"
-              - column:
-                  name: currency
-                  value: THB
-              - column:
-                  name: balance
-                  valueNumeric: 15000.50
+        - sql:
+            sql: >
+              SET IDENTITY_INSERT account ON;
+
+              INSERT INTO account (id, account_number, owner_name, currency, balance)
+              VALUES (1001, '0000001001', 'Somchai Jaidee', 'THB', 50000.00);
+
+              INSERT INTO account (id, account_number, owner_name, currency, balance)
+              VALUES (1002, '0000001002', 'Suda Meesuk', 'THB', 30000.00);
+
+              INSERT INTO account (id, account_number, owner_name, currency, balance)
+              VALUES (1003, '0000001003', 'Anan Rakthai', 'THB', 15000.50);
+
+              SET IDENTITY_INSERT account OFF;
 
   # changeSet 4: สร้างตาราง transfer
   - changeSet:
