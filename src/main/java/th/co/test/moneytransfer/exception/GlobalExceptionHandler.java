@@ -57,6 +57,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(AccountNotActiveException.class)
+    public ResponseEntity<ProblemDetail> handleAccountNotActive(AccountNotActiveException ex,
+                                                                   HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ERROR_BASE_URI + "account-not-active",
+                "Account not active",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {
