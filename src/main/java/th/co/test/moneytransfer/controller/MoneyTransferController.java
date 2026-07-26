@@ -16,9 +16,11 @@ import lombok.extern.log4j.Log4j2;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.request.AccountStatusRequest;
 import th.co.test.moneytransfer.request.DepositRequest;
+import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
+import th.co.test.moneytransfer.response.WithdrawResponse;
 import th.co.test.moneytransfer.service.MoneyTransferService;
 
 @Log4j2
@@ -63,6 +65,14 @@ public class MoneyTransferController {
                                                      @Valid @RequestBody DepositRequest request) {
         DepositResponse response = moneyTransferService.deposit(id, request);
         log.info("deposit: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/accounts/{id}/withdraw")
+    public ResponseEntity<WithdrawResponse> withdraw(@PathVariable Long id,
+                                                       @Valid @RequestBody WithDrawRequest request) {
+        WithdrawResponse response = moneyTransferService.withdraw(id, request);
+        log.info("withdraw: {}", response);
         return ResponseEntity.ok(response);
     }
 }

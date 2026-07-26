@@ -14,14 +14,17 @@ import th.co.test.moneytransfer.entity.LedgerEntry;
 import th.co.test.moneytransfer.exception.AccountCloseNotAllowedException;
 import th.co.test.moneytransfer.exception.AccountNotActiveException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
+import th.co.test.moneytransfer.exception.InsufficientBalanceException;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.request.AccountStatusRequest;
 import th.co.test.moneytransfer.request.DepositRequest;
+import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
+import th.co.test.moneytransfer.response.WithdrawResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -172,6 +175,47 @@ public class MoneyTransferService {
         
         //set response
         DepositResponse response = new DepositResponse();
+        response.setAccountId(savedAccount.getId());
+        response.setBalance(savedAccount.getBalance());
+        response.setLedgerEntryId(savedLedger.getId());
+
+        return response;
+    }
+
+    @Transactional
+    public WithdrawResponse withdraw(Long id, WithDrawRequest request) {
+        Optional<Account> result = accountRepository.findById(id);
+
+        if (result.isEmpty()) {
+            throw new AccountNotFoundException(id);
+        }
+
+        Account account = result.get();
+
+        if (!"ACTIVE".equals(account.getStatus())) {
+            throw new AccountNotActiveException(id);
+        }
+
+        // check if balance < amount throw error
+        if (account.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new InsufficientBalanceException(id);
+        }
+
+        // balance - amount and update to account by id
+        BigDecimal newBalance = account.getBalance().subtract(request.getAmount());
+        account.setBalance(newBalance);
+        Account savedAccount = accountRepository.save(account);
+
+        // insert ledger_entry
+        LedgerEntry ledger = new LedgerEntry();
+        ledger.setAccountId(savedAccount.getId());
+        ledger.setAmount(request.getAmount());
+        ledger.setBalanceAfter(savedAccount.getBalance());
+        ledger.setEntryType("DEBIT");
+        ledger.setTransferId(null);
+        LedgerEntry savedLedger = ledgerEntryRepository.save(ledger);
+
+        WithdrawResponse response = new WithdrawResponse();
         response.setAccountId(savedAccount.getId());
         response.setBalance(savedAccount.getBalance());
         response.setLedgerEntryId(savedLedger.getId());

@@ -69,6 +69,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ProblemDetail> handleInsufficientBalance(InsufficientBalanceException ex,
+                                                                      HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ERROR_BASE_URI + "insufficient-balance",
+                "Insufficient balance",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {
