@@ -1,6 +1,7 @@
 package th.co.test.moneytransfer.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
+import th.co.test.moneytransfer.response.BalanceResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -83,6 +85,24 @@ public class MoneyTransferService {
         response.setBalance(account.getBalance());
         response.setStatus(account.getStatus());
         response.setCreatedAt(account.getCreatedAt());
+
+        return response;
+    }
+
+    public BalanceResponse getAccountBalance(Long id) {
+        Optional<Account> result = accountRepository.findById(id);
+
+        if (result.isEmpty()) {
+            throw new AccountNotFoundException(id);
+        }
+
+        Account account = result.get();
+
+        BalanceResponse response = new BalanceResponse();
+        response.setAccountId(account.getId());
+        response.setBalance(account.getBalance());
+        response.setCurrency(account.getCurrency());
+        response.setAsOf(LocalDateTime.now());
 
         return response;
     }

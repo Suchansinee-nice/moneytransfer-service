@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
+import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.service.MoneyTransferService;
 
 @Log4j2
@@ -35,6 +36,13 @@ public class MoneyTransferController {
     public ResponseEntity<AccountResponse> getAccount(@PathVariable Long id) {
         AccountResponse response = moneyTransferService.getAccountById(id);
         log.info("get account: {}", response);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(value = "/accounts/{id}/balance")
+    public ResponseEntity<BalanceResponse> getAccountBalance(@PathVariable Long id) {
+        BalanceResponse response = moneyTransferService.getAccountBalance(id);
+        log.info("get account balance: {}", response);
         return ResponseEntity.ok(response);
     }
 }
