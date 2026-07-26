@@ -1,6 +1,7 @@
 package th.co.test.moneytransfer.service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,18 +23,22 @@ public class MoneyTransferService {
 
     @Transactional
     public AccountResponse createAccount(AccountRequest request) {
-        Long nextSeq = accountRepository.getNextAccountNumberSeqValue();
-        String accountNumber = String.format("%010d", nextSeq);
-
         Account account = new Account();
-        account.setAccountNumber(accountNumber);
+        
+        //mock account number
+        account.setAccountNumber("TMP" + UUID.randomUUID().toString().replace("-", "").substring(0, 17));
         account.setOwnerName(request.getOwnerName());
         account.setCurrency(request.getCurrency());
         account.setBalance(request.getInitialBalance());
-        
-        //add account
-        Account saved = accountRepository.save(account);
-        
+
+        // saveAndFlush -> insert immediately
+        Account saved = accountRepository.saveAndFlush(account);
+
+        //update account number after insert data
+        String accountNumber = String.format("%010d", saved.getId());
+        saved.setAccountNumber(accountNumber);
+        saved = accountRepository.save(saved);
+
         //save to ledger
         if (saved.getBalance().compareTo(BigDecimal.ZERO) > 0) {
             LedgerEntry ledger = new LedgerEntry();
