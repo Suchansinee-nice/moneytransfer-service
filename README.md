@@ -12,6 +12,10 @@ Postman Collection
 - https://drive.google.com/file/d/1XzcLurbxLLrOsNDM2w5_Y-1hQ-T4c6Ye/view?usp=drive_link
 
 สรุปสถานะงาน
-
+| Tasks                  | Status | Remark        |
+|----------------------------|--------|---------------------|
+| /api/v1/accounts           | Done   |         |
+| /api/v1/accounts/{id}      | Done    |          |
+| /api/v1/transfers          | Partially   |     |
 
 
