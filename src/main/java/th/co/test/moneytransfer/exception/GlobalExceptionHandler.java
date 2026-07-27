@@ -105,6 +105,22 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex,
+                                                                    HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.TOO_MANY_REQUESTS,
+                ERROR_BASE_URI + "rate-limit-exceeded",
+                "Rate limit exceeded",
+                ex.getMessage(),
+                request);
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(problem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {

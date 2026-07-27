@@ -29,6 +29,7 @@ import th.co.test.moneytransfer.exception.AccountNotActiveException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
 import th.co.test.moneytransfer.exception.InsufficientBalanceException;
 import th.co.test.moneytransfer.exception.InvalidPageRequestException;
+import th.co.test.moneytransfer.exception.RateLimitExceededException;
 import th.co.test.moneytransfer.exception.TransferNotFoundException;
 import th.co.test.moneytransfer.model.AccountCacheModel;
 import th.co.test.moneytransfer.model.LedgerEntryModel;
@@ -54,6 +55,10 @@ public class MoneyTransferService {
 
     private static final String ACCOUNT_CACHE_KEY_PREFIX = "account:";
     private static final Duration ACCOUNT_CACHE_TTL = Duration.ofSeconds(60);
+
+    private static final String TRANSFER_RATE_LIMIT_KEY_PREFIX = "ratelimit:transfer:";
+    private static final int TRANSFER_RATE_LIMIT_MAX_REQUESTS = 10;
+    private static final Duration TRANSFER_RATE_LIMIT_WINDOW = Duration.ofSeconds(60);
 
     private final AccountRepository accountRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -367,6 +372,9 @@ public class MoneyTransferService {
     @Transactional
     public TransferResponse transfer(TransferRequest request) {
 
+        // 1. check rate limit
+        checkTransferRateLimit(request.getFromAccountId());
+
         // if not found account
         Optional<Account> fromResult = accountRepository.findById(request.getFromAccountId());
         if (fromResult.isEmpty()) {
@@ -457,6 +465,33 @@ public class MoneyTransferService {
         ledgerEntryRepository.save(credit);
 
         return buildTransferResponse(savedTransfer);
+    }
+
+    private void checkTransferRateLimit(Long accountId) {
+        String key = TRANSFER_RATE_LIMIT_KEY_PREFIX + accountId;
+
+        // 1st time if don't have key in redis -> create key and add count 1
+        Long count = redisTemplate.opsForValue().increment(key);
+
+        //count == 1
+        if (count != null && count == 1L) {
+            redisTemplate.expire(key, TRANSFER_RATE_LIMIT_WINDOW);
+        }
+        
+        //count > 10
+        if (count != null && count > TRANSFER_RATE_LIMIT_MAX_REQUESTS) {
+        	//get remaining time
+            Long ttlSeconds = redisTemplate.getExpire(key);
+            
+            long retryAfterSeconds;
+            if (ttlSeconds != null && ttlSeconds > 0) {
+                retryAfterSeconds = ttlSeconds;
+            } else {
+                retryAfterSeconds = TRANSFER_RATE_LIMIT_WINDOW.getSeconds();
+            }
+
+            throw new RateLimitExceededException(accountId, retryAfterSeconds);
+        }
     }
 
     public TransferResponse getTransferById(Long id) {
