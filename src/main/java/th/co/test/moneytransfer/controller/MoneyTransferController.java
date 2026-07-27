@@ -1,5 +1,7 @@
 package th.co.test.moneytransfer.controller;
 
+import java.net.URI;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +19,13 @@ import lombok.extern.log4j.Log4j2;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.request.AccountStatusRequest;
 import th.co.test.moneytransfer.request.DepositRequest;
+import th.co.test.moneytransfer.request.TransferRequest;
 import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
 import th.co.test.moneytransfer.response.TransactionResponse;
+import th.co.test.moneytransfer.response.TransferResponse;
 import th.co.test.moneytransfer.response.WithdrawResponse;
 import th.co.test.moneytransfer.service.MoneyTransferService;
 
@@ -87,5 +91,18 @@ public class MoneyTransferController {
     	TransactionResponse response = moneyTransferService.getTransactions(id, page, size);
     	log.info("transaction : {}", response);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/transfers")
+    public ResponseEntity<TransferResponse> transfer(@Valid @RequestBody TransferRequest request) {
+        TransferResponse response = moneyTransferService.transfer(request);
+        log.info("transfer: {}", response);
+
+        if ("FAILED".equals(response.getStatus())) {
+            return ResponseEntity.unprocessableEntity().body(response);
+        }
+
+        URI location = URI.create("/api/v1/transfers/" + response.getTransferId());
+        return ResponseEntity.created(location).body(response);
     }
 }

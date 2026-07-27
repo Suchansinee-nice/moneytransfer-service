@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import th.co.test.moneytransfer.entity.Account;
 import th.co.test.moneytransfer.entity.LedgerEntry;
+import th.co.test.moneytransfer.entity.Transfer;
 import th.co.test.moneytransfer.exception.AccountCloseNotAllowedException;
 import th.co.test.moneytransfer.exception.AccountNotActiveException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
@@ -25,14 +26,17 @@ import th.co.test.moneytransfer.exception.InvalidPageRequestException;
 import th.co.test.moneytransfer.model.LedgerEntryModel;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
+import th.co.test.moneytransfer.repository.TransferRepository;
 import th.co.test.moneytransfer.request.AccountRequest;
 import th.co.test.moneytransfer.request.AccountStatusRequest;
 import th.co.test.moneytransfer.request.DepositRequest;
+import th.co.test.moneytransfer.request.TransferRequest;
 import th.co.test.moneytransfer.request.WithDrawRequest;
 import th.co.test.moneytransfer.response.AccountResponse;
 import th.co.test.moneytransfer.response.BalanceResponse;
 import th.co.test.moneytransfer.response.DepositResponse;
 import th.co.test.moneytransfer.response.TransactionResponse;
+import th.co.test.moneytransfer.response.TransferResponse;
 import th.co.test.moneytransfer.response.WithdrawResponse;
 
 @Service
@@ -41,6 +45,7 @@ public class MoneyTransferService {
 
     private final AccountRepository accountRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final TransferRepository transferRepository;
 
     @Transactional
     public AccountResponse createAccount(AccountRequest request) {
@@ -271,6 +276,111 @@ public class MoneyTransferService {
         response.setTotalPages(ledgerPage.getTotalPages());
         response.setItems(items);
 
+        return response;
+    }
+
+    @Transactional
+    public TransferResponse transfer(TransferRequest request) {
+
+        // if not found account
+        Optional<Account> fromResult = accountRepository.findById(request.getFromAccountId());
+        if (fromResult.isEmpty()) {
+            throw new AccountNotFoundException(request.getFromAccountId());
+        }
+
+        Optional<Account> toResult = accountRepository.findById(request.getToAccountId());
+        if (toResult.isEmpty()) {
+            throw new AccountNotFoundException(request.getToAccountId());
+        }
+        
+        //found account
+        Account fromAccount = fromResult.get();
+        Account toAccount = toResult.get();
+
+        // check validate 
+        String failureReason = null;
+
+        if (request.getFromAccountId().equals(request.getToAccountId())) {
+            failureReason = "ห้ามโอนเข้าบัญชีตัวเอง";
+        } else if (!"ACTIVE".equals(fromAccount.getStatus())) {
+            failureReason = "บัญชีต้นทางไม่ได้อยู่ในสถานะ ACTIVE";
+        } else if (!"ACTIVE".equals(toAccount.getStatus())) {
+            failureReason = "บัญชีปลายทางไม่ได้อยู่ในสถานะ ACTIVE";
+        } else if (!fromAccount.getCurrency().equals(request.getCurrency())
+                || !toAccount.getCurrency().equals(request.getCurrency())) {
+            failureReason = "สกุลเงินไม่ตรงกับบัญชี";
+        } else if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
+            failureReason = "ยอดเงินในบัญชีต้นทางไม่เพียงพอ";
+        }
+
+        if (failureReason != null) {
+   
+            Transfer failed = new Transfer();
+         
+            failed.setIdempotencyKey(UUID.randomUUID().toString());
+            failed.setRequestHash(UUID.randomUUID().toString());
+            failed.setFromAccountId(request.getFromAccountId());
+            failed.setToAccountId(request.getToAccountId());
+            failed.setAmount(request.getAmount());
+            failed.setCurrency(request.getCurrency());
+            failed.setStatus("FAILED");
+            failed.setFailureReason(failureReason);
+            Transfer savedFailed = transferRepository.save(failed);
+
+            return buildTransferResponse(savedFailed);
+        }
+
+        // Pass all condition -> save
+        fromAccount.setBalance(fromAccount.getBalance().subtract(request.getAmount()));
+        toAccount.setBalance(toAccount.getBalance().add(request.getAmount()));
+        accountRepository.save(fromAccount);
+        accountRepository.save(toAccount);
+
+        
+        //save to transfer
+        Transfer transfer = new Transfer();
+        
+        transfer.setIdempotencyKey(UUID.randomUUID().toString());
+        transfer.setRequestHash(UUID.randomUUID().toString());
+        transfer.setFromAccountId(request.getFromAccountId());
+        transfer.setToAccountId(request.getToAccountId());
+        transfer.setAmount(request.getAmount());
+        transfer.setCurrency(request.getCurrency());
+        transfer.setStatus("COMPLETED");
+        Transfer savedTransfer = transferRepository.saveAndFlush(transfer);
+        
+        
+        //save to ledger entry
+        LedgerEntry debit = new LedgerEntry();
+        debit.setAccountId(fromAccount.getId());
+        debit.setTransferId(savedTransfer.getId());
+        debit.setEntryType("DEBIT");
+        debit.setAmount(request.getAmount());
+        debit.setBalanceAfter(fromAccount.getBalance());
+        ledgerEntryRepository.save(debit);
+
+        LedgerEntry credit = new LedgerEntry();
+        credit.setAccountId(toAccount.getId());
+        credit.setTransferId(savedTransfer.getId());
+        credit.setEntryType("CREDIT");
+        credit.setAmount(request.getAmount());
+        credit.setBalanceAfter(toAccount.getBalance());
+        ledgerEntryRepository.save(credit);
+
+        return buildTransferResponse(savedTransfer);
+    }
+
+    private TransferResponse buildTransferResponse(Transfer transfer) {
+        
+    	//set to response
+    	TransferResponse response = new TransferResponse();
+        response.setTransferId(transfer.getId());
+        response.setStatus(transfer.getStatus());
+        response.setFromAccountId(transfer.getFromAccountId());
+        response.setToAccountId(transfer.getToAccountId());
+        response.setAmount(transfer.getAmount());
+        response.setCurrency(transfer.getCurrency());
+        response.setCreatedAt(transfer.getCreatedAt());
         return response;
     }
 }
