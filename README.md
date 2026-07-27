@@ -23,5 +23,9 @@
 | /api/v1/accounts/{id}/withdraw | Partially |          |
 | /api/v1/transfers          | Partially |       |
 | /api/v1/transfers/{id}       | Done |       |
+| Distributed Lock | Unfinished | |
+| Cache | Done | |
+| Rate Limiting | Done | |
+|Idempotency cache (Bonus) | Unfinished | |
 
 
