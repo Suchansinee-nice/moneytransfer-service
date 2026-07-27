@@ -105,4 +105,11 @@ public class MoneyTransferController {
         URI location = URI.create("/api/v1/transfers/" + response.getTransferId());
         return ResponseEntity.created(location).body(response);
     }
+
+    @GetMapping(value = "/transfers/{id}")
+    public ResponseEntity<TransferResponse> getTransfer(@PathVariable Long id) {
+        TransferResponse response = moneyTransferService.getTransferById(id);
+        log.info("get transfer: {}", response);
+        return ResponseEntity.ok(response);
+    }
 }

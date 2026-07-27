@@ -57,6 +57,18 @@ public class GlobalExceptionHandler {
         return respond(problem);
     }
 
+    @ExceptionHandler(TransferNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleTransferNotFound(TransferNotFoundException ex,
+                                                                   HttpServletRequest request) {
+        ProblemDetail problem = buildProblem(
+                HttpStatus.NOT_FOUND,
+                ERROR_BASE_URI + "transfer-not-found",
+                "Transfer not found",
+                ex.getMessage(),
+                request);
+        return respond(problem);
+    }
+
     @ExceptionHandler(AccountCloseNotAllowedException.class)
     public ResponseEntity<ProblemDetail> handleAccountCloseNotAllowed(AccountCloseNotAllowedException ex,
                                                                         HttpServletRequest request) {

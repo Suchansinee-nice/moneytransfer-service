@@ -23,6 +23,7 @@ import th.co.test.moneytransfer.exception.AccountNotActiveException;
 import th.co.test.moneytransfer.exception.AccountNotFoundException;
 import th.co.test.moneytransfer.exception.InsufficientBalanceException;
 import th.co.test.moneytransfer.exception.InvalidPageRequestException;
+import th.co.test.moneytransfer.exception.TransferNotFoundException;
 import th.co.test.moneytransfer.model.LedgerEntryModel;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
@@ -368,6 +369,16 @@ public class MoneyTransferService {
         ledgerEntryRepository.save(credit);
 
         return buildTransferResponse(savedTransfer);
+    }
+
+    public TransferResponse getTransferById(Long id) {
+        Optional<Transfer> result = transferRepository.findById(id);
+
+        if (result.isEmpty()) {
+            throw new TransferNotFoundException(id);
+        }
+
+        return buildTransferResponse(result.get());
     }
 
     private TransferResponse buildTransferResponse(Transfer transfer) {
