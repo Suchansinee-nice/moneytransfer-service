@@ -27,5 +27,6 @@
 | Cache | Done | |
 | Rate Limiting | Done | |
 |Idempotency cache (Bonus) | Unfinished | |
+| Messaging Queue | Unfinished | |
 
 
