@@ -14,8 +14,15 @@ Postman Collection
 สรุปสถานะงาน
 | Tasks                  | Status | Remark        |
 |----------------------------|--------|---------------------|
-| /api/v1/accounts           | Done   |         |
-| /api/v1/accounts/{id}      | Done    |          |
-| /api/v1/transfers          | Partially   |     |
+| /api/v1/accounts           | Done   |          |
+| /api/v1/accounts/{id}      | Done   |          |
+| api/v1/accounts/{id}/balance | Done |          |
+| /api/v1/accounts/{id}/transactions | Done |          |
+| /api/v1/accounts/{id}/status | Done |          |
+| /api/v1/accounts/{id}/deposit | Done |          |
+| /api/v1/accounts/{id}/withdraw | Done |          |
+| /api/v1/transfers          | Partially |       |
+| /api/v1/transfers/{id}       | Done |       |
+
 
 
