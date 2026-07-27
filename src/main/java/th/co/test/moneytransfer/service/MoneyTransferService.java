@@ -1,6 +1,7 @@
 package th.co.test.moneytransfer.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,10 +12,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import th.co.test.moneytransfer.entity.Account;
 import th.co.test.moneytransfer.entity.LedgerEntry;
 import th.co.test.moneytransfer.entity.Transfer;
@@ -24,6 +30,7 @@ import th.co.test.moneytransfer.exception.AccountNotFoundException;
 import th.co.test.moneytransfer.exception.InsufficientBalanceException;
 import th.co.test.moneytransfer.exception.InvalidPageRequestException;
 import th.co.test.moneytransfer.exception.TransferNotFoundException;
+import th.co.test.moneytransfer.model.AccountCacheModel;
 import th.co.test.moneytransfer.model.LedgerEntryModel;
 import th.co.test.moneytransfer.repository.AccountRepository;
 import th.co.test.moneytransfer.repository.LedgerEntryRepository;
@@ -40,13 +47,19 @@ import th.co.test.moneytransfer.response.TransactionResponse;
 import th.co.test.moneytransfer.response.TransferResponse;
 import th.co.test.moneytransfer.response.WithdrawResponse;
 
+@Log4j2
 @Service
 @RequiredArgsConstructor
 public class MoneyTransferService {
 
+    private static final String ACCOUNT_CACHE_KEY_PREFIX = "account:";
+    private static final Duration ACCOUNT_CACHE_TTL = Duration.ofSeconds(60);
+
     private final AccountRepository accountRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final TransferRepository transferRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public AccountResponse createAccount(AccountRequest request) {
@@ -92,7 +105,40 @@ public class MoneyTransferService {
     }
 
     public AccountResponse getAccountById(Long id) {
-    	Optional<Account> result = accountRepository.findById(id);
+        // 1. read from cache first
+        String cacheKey = accountCacheKey(id);
+        String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+
+        if (cachedJson != null) {
+            try {
+                AccountCacheModel cached = objectMapper.readValue(cachedJson, AccountCacheModel.class);
+                
+                //get Balance real time not from cache
+                Optional<BigDecimal> balanceResult = accountRepository.findBalanceById(id);
+
+                if (balanceResult.isEmpty()) {
+                    throw new AccountNotFoundException(id);
+                }
+
+                BigDecimal balance = balanceResult.get();
+
+                AccountResponse response = new AccountResponse();
+                response.setId(id);
+                response.setAccountNumber(cached.getAccountNumber());
+                response.setOwnerName(cached.getOwnerName());
+                response.setCurrency(cached.getCurrency());
+                response.setStatus(cached.getStatus());
+                response.setCreatedAt(cached.getCreatedAt());
+                response.setBalance(balance);
+
+                return response;
+            } catch (JsonProcessingException e) {
+                log.warn("ไม่สามารถ parse account cache key={} ได้ ข้ามไปอ่านจาก DB แทน", cacheKey, e);
+            }
+        }
+
+        // 2.cache miss -> read from DB
+        Optional<Account> result = accountRepository.findById(id);
 
         if (result.isEmpty()) {
             throw new AccountNotFoundException(id);
@@ -100,6 +146,10 @@ public class MoneyTransferService {
 
         Account account = result.get();
 
+        //3. read from db -> keep in cache
+        cacheAccount(account);
+        
+        //4.set response
         AccountResponse response = new AccountResponse();
         response.setId(account.getId());
         response.setAccountNumber(account.getAccountNumber());
@@ -110,6 +160,32 @@ public class MoneyTransferService {
         response.setCreatedAt(account.getCreatedAt());
 
         return response;
+    }
+
+    private void cacheAccount(Account account) {
+        AccountCacheModel cacheModel = new AccountCacheModel();
+        cacheModel.setAccountNumber(account.getAccountNumber());
+        cacheModel.setOwnerName(account.getOwnerName());
+        cacheModel.setCurrency(account.getCurrency());
+        cacheModel.setStatus(account.getStatus());
+        cacheModel.setCreatedAt(account.getCreatedAt());
+
+        try {
+        	//convert object to string (json)
+            String json = objectMapper.writeValueAsString(cacheModel);
+            //keep in redis
+            redisTemplate.opsForValue().set(accountCacheKey(account.getId()), json, ACCOUNT_CACHE_TTL);
+        } catch (JsonProcessingException e) {
+            log.warn("ไม่สามารถเก็บ account id={} ลง cache ได้", account.getId(), e);
+        }
+    }
+
+    private void evictAccountCache(Long id) {
+        redisTemplate.delete(accountCacheKey(id));
+    }
+
+    private String accountCacheKey(Long id) {
+        return ACCOUNT_CACHE_KEY_PREFIX + id;
     }
 
     @Transactional
@@ -129,6 +205,9 @@ public class MoneyTransferService {
 
         account.setStatus(request.getStatus());
         Account saved = accountRepository.save(account);
+
+        // update status -> remove cache 
+        evictAccountCache(id);
 
         AccountResponse response = new AccountResponse();
         response.setId(saved.getId());
@@ -179,7 +258,9 @@ public class MoneyTransferService {
         account.setBalance(newBalance);
         Account savedAccount = accountRepository.save(account);
 
-        // insert ledger_entry 
+        evictAccountCache(id);
+
+        // insert ledger_entry
         LedgerEntry ledger = new LedgerEntry();
         ledger.setAccountId(savedAccount.getId());
         ledger.setAmount(request.getAmount());
@@ -220,6 +301,9 @@ public class MoneyTransferService {
         BigDecimal newBalance = account.getBalance().subtract(request.getAmount());
         account.setBalance(newBalance);
         Account savedAccount = accountRepository.save(account);
+
+
+        evictAccountCache(id);
 
         // insert ledger_entry
         LedgerEntry ledger = new LedgerEntry();
@@ -337,7 +421,11 @@ public class MoneyTransferService {
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
 
-        
+  
+        evictAccountCache(fromAccount.getId());
+        evictAccountCache(toAccount.getId());
+
+
         //save to transfer
         Transfer transfer = new Transfer();
         
